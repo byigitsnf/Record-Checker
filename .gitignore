@@ -1,0 +1,6 @@
+*.class
+*.jar
+*.msi
+dist/
+manifest.txt
+records.txt
