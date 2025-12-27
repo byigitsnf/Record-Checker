@@ -6,26 +6,21 @@ import java.util.*;
 public class RecordStore {
 
     private static final Path APP_DIR =
-        Paths.get(System.getProperty("user.home"), "AppData", "Local", "KayitUygulamasi");
+        Paths.get(System.getProperty("user.home"),
+                  "AppData","Local","KayitUygulamasi");
 
-    private static final Path FILE =
-        APP_DIR.resolve("records.txt");
+    private static final Path FILE = APP_DIR.resolve("records.txt");
 
     static {
         try {
-            if (!Files.exists(APP_DIR)) {
-                Files.createDirectories(APP_DIR);
-            }
-            if (!Files.exists(FILE)) {
-                Files.createFile(FILE);
-            }
+            if (!Files.exists(APP_DIR)) Files.createDirectories(APP_DIR);
+            if (!Files.exists(FILE)) Files.createFile(FILE);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    /* ================= RAW ================= */
-
+    // ---------------- HAM ----------------
     private static List<String> loadRaw() {
         try {
             return Files.readAllLines(FILE);
@@ -34,84 +29,90 @@ public class RecordStore {
         }
     }
 
-    private static void saveRaw(List<String> lines) {
+    private static void saveRaw(List<String> l) {
         try {
-            Files.write(FILE, lines);
+            Files.write(FILE, l);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    /* ================= ADD ================= */
+    // ---------------- EKLE ----------------
+    public static boolean add(String tc, String name,
+                              String address, boolean hasCopy) {
 
-    public static boolean add(String tc, String address, boolean hasCopy) {
         List<String> raw = loadRaw();
+        if (raw.stream().anyMatch(r -> r.startsWith(tc + ";")))
+            return false;
 
-        boolean exists = raw.stream()
-                .anyMatch(line -> line.startsWith(tc + ";"));
-
-        if (exists) return false;
-
-        raw.add(tc + ";" + address + ";" + hasCopy);
+        raw.add(tc + ";" + name + ";" + address + ";" + hasCopy);
         saveRaw(raw);
         return true;
     }
 
-    /* ================= SEARCH ================= */
+    // ---------------- NORMAL LİSTE ----------------
+    public static List<String> loadAll() {
+        List<String> out = new ArrayList<>();
+        for (String r : loadRaw()) out.add(format(r));
+        return out;
+    }
 
+    // ---------------- TC'YE GÖRE SIRALI ----------------
+    public static List<String> loadSortedByTC() {
+        List<String> raw = loadRaw();
+
+        raw.sort(Comparator.comparingLong(
+            r -> Long.parseLong(r.split(";")[0])
+        ));
+
+        List<String> out = new ArrayList<>();
+        for (String r : raw) out.add(format(r));
+        return out;
+    }
+
+    // ---------------- SORGULA ----------------
     public static Optional<String> search(String tc, String address) {
         return loadRaw().stream()
-                .filter(line ->
-                        (!tc.isBlank() && line.startsWith(tc + ";")) ||
-                        (!address.isBlank() && line.contains(";" + address + ";"))
-                )
-                .map(RecordStore::format)
-                .findFirst();
+            .filter(r ->
+                (!tc.isBlank() && r.startsWith(tc + ";")) ||
+                (!address.isBlank() && r.contains(";" + address + ";"))
+            )
+            .map(RecordStore::format)
+            .findFirst();
     }
 
-    /* ================= LOAD ALL ================= */
-
-    public static List<String> loadAll() {
-        List<String> list = new ArrayList<>();
-        for (String r : loadRaw()) {
-            list.add(format(r));
-        }
-        return list;
-    }
-
-    /* ================= DELETE ================= */
-
-    public static void deleteRecords(List<String> formattedRecords) {
-
+    // ---------------- SİL ----------------
+    public static void deleteRecords(List<String> formatted) {
         Set<String> tcSet = new HashSet<>();
 
-        for (String f : formattedRecords) {
+        for (String f : formatted) {
             extractTC(f).ifPresent(tcSet::add);
         }
 
         List<String> raw = loadRaw();
-        raw.removeIf(line -> {
-            for (String tc : tcSet) {
-                if (line.startsWith(tc + ";")) return true;
-            }
-            return false;
-        });
+        raw.removeIf(r ->
+            tcSet.stream().anyMatch(tc -> r.startsWith(tc + ";"))
+        );
 
         saveRaw(raw);
     }
 
-    /* ================= FORMAT ================= */
-
+    // ---------------- FORMAT ----------------
     private static String format(String raw) {
         String[] p = raw.split(";");
-        if (p.length < 3) return raw;
 
-        return "Kimlik: " + p[0] +
-               " | Adres: " + (p[1].isBlank() ? "-" : capitalize(p[1])) +
-               " | Fotokopi: " + (Boolean.parseBoolean(p[2]) ? "Var" : "Yok");
+        String tc = p[0];
+        String name = p.length == 4 ? p[1] : "";
+        String address = p.length == 4 ? p[2] : p[1];
+        boolean hasCopy = Boolean.parseBoolean(p[p.length - 1]);
+
+        return "Kimlik: " + tc +
+               " | Ad Soyad: " + (name.isBlank() ? "-" : name) +
+               " | Adres: " + (address.isBlank() ? "-" : address) +
+               " | Fotokopi: " + (hasCopy ? "Var" : "Yok");
     }
 
-    public static Optional<String> extractTC(String formatted) {
+    private static Optional<String> extractTC(String formatted) {
         try {
             return Optional.of(
                 formatted.split("\\|")[0]
@@ -122,10 +123,4 @@ public class RecordStore {
             return Optional.empty();
         }
     }
-
-    private static String capitalize(String s) {
-        if (s == null || s.isEmpty()) return s;
-        return s.substring(0,1).toUpperCase() + s.substring(1);
-    }
 }
-
