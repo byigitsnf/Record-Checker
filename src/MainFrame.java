@@ -1,13 +1,14 @@
 package src;
 import javax.swing.*;
 import java.awt.*;
+import java.util.List;
 import java.util.Optional;
 
 public class MainFrame extends JFrame {
 
     public MainFrame() {
         setTitle("Kayıt Sistemi v1.1");
-        setSize(450, 360);
+        setSize(480, 400);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         initUI();
@@ -21,7 +22,8 @@ public class MainFrame extends JFrame {
         JCheckBox photoCheck = new JCheckBox("Kimlik fotokopisi var");
 
         JButton addBtn = new JButton("Ekle");
-        JButton searchBtn = new JButton("Sorgula");
+        JButton tcSearchBtn = new JButton("TC Sorgula");
+        JButton nameSearchBtn = new JButton("İsim Sorgula");
         JButton recordsBtn = new JButton("Kayıtlar");
 
         JPanel panel = new JPanel(new GridLayout(0,1,5,5));
@@ -34,7 +36,8 @@ public class MainFrame extends JFrame {
         panel.add(addressField);
         panel.add(photoCheck);
         panel.add(addBtn);
-        panel.add(searchBtn);
+        panel.add(tcSearchBtn);
+        panel.add(nameSearchBtn);
         panel.add(recordsBtn);
 
         add(panel);
@@ -66,14 +69,43 @@ public class MainFrame extends JFrame {
             photoCheck.setSelected(false);
         });
 
-        // SORGULA
-        searchBtn.addActionListener(e -> {
-            Optional<String> result =
-                    RecordStore.search(tcField.getText().trim(),
-                                       addressField.getText().trim());
+        // TC SORGULA (STRICT)
+        tcSearchBtn.addActionListener(e -> {
+            Optional<String> r =
+                RecordStore.searchByTC(tcField.getText().trim());
 
             JOptionPane.showMessageDialog(this,
-                    result.orElse("Kayıt bulunamadı"));
+                    r.orElse("Kayıt bulunamadı"));
+        });
+
+        // İSİM SORGULA (ESNEK + ÇOKLU)
+        nameSearchBtn.addActionListener(e -> {
+            String name = nameField.getText().trim();
+
+            if (name.isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "İsim giriniz");
+                return;
+            }
+
+            List<String> results =
+                RecordStore.searchByName(name);
+
+            if (results.isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "Kayıt bulunamadı");
+                return;
+            }
+
+            JTextArea area = new JTextArea();
+            area.setEditable(false);
+            for (String r : results)
+                area.append(r + "\n");
+
+            JOptionPane.showMessageDialog(this,
+                    new JScrollPane(area),
+                    "İsim Sorgu Sonuçları",
+                    JOptionPane.INFORMATION_MESSAGE);
         });
 
         // KAYITLAR

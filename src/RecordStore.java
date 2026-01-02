@@ -50,6 +50,31 @@ public class RecordStore {
         return true;
     }
 
+    // ---------------- TC SORGULA (STRICT) ----------------
+    public static Optional<String> searchByTC(String tc) {
+        return loadRaw().stream()
+            .filter(r -> r.startsWith(tc + ";"))
+            .map(RecordStore::format)
+            .findFirst();
+    }
+
+    // ---------------- İSİM SORGULA (ESNEK) ----------------
+    public static List<String> searchByName(String name) {
+        String q = name.toLowerCase();
+
+        List<String> out = new ArrayList<>();
+
+        for (String r : loadRaw()) {
+            String[] p = r.split(";");
+            if (p.length < 2) continue;
+
+            if (p[1].toLowerCase().contains(q)) {
+                out.add(format(r));
+            }
+        }
+        return out;
+    }
+
     // ---------------- NORMAL LİSTE ----------------
     public static List<String> loadAll() {
         List<String> out = new ArrayList<>();
@@ -68,17 +93,6 @@ public class RecordStore {
         List<String> out = new ArrayList<>();
         for (String r : raw) out.add(format(r));
         return out;
-    }
-
-    // ---------------- SORGULA ----------------
-    public static Optional<String> search(String tc, String address) {
-        return loadRaw().stream()
-            .filter(r ->
-                (!tc.isBlank() && r.startsWith(tc + ";")) ||
-                (!address.isBlank() && r.contains(";" + address + ";"))
-            )
-            .map(RecordStore::format)
-            .findFirst();
     }
 
     // ---------------- SİL ----------------
@@ -102,8 +116,8 @@ public class RecordStore {
         String[] p = raw.split(";");
 
         String tc = p[0];
-        String name = p.length == 4 ? p[1] : "";
-        String address = p.length == 4 ? p[2] : p[1];
+        String name = p.length >= 4 ? p[1] : "";
+        String address = p.length >= 4 ? p[2] : p[1];
         boolean hasCopy = Boolean.parseBoolean(p[p.length - 1]);
 
         return "Kimlik: " + tc +
